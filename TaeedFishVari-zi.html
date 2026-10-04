@@ -1,0 +1,335 @@
+<!DOCTYPE html>
+<html lang="fa" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>تایید هوشمند تراکنش</title>
+    <style>
+        :root {
+            --bg: #08090c;
+            --surface: #121318;
+            --surface-hover: #181a21;
+            --border: #22252e;
+            --primary: #5266ff;
+            --text-main: #f3f4f6;
+            --text-muted: #6b7280;
+            --error: #ef4444;
+        }
+
+        * {
+            box-sizing: border-box;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+        }
+
+        body {
+            background-color: var(--bg);
+            color: var(--text-main);
+            margin: 0;
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 20px;
+        }
+
+        .payment-card {
+            background-color: var(--surface);
+            border: 1px solid var(--border);
+            width: 100%;
+            max-width: 420px;
+            border-radius: 24px;
+            padding: 32px;
+            position: relative;
+            overflow: hidden;
+        }
+
+        /* نوار زمان پیشرفت بالای کارت */
+        .time-bar-container {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 4px;
+            background: var(--border);
+        }
+
+        .time-bar {
+            height: 100%;
+            width: 100%;
+            background: var(--primary);
+            transition: width 1s linear;
+        }
+
+        .header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 28px;
+        }
+
+        .header h1 {
+            font-size: 18px;
+            font-weight: 600;
+            margin: 0;
+        }
+
+        .timer {
+            font-size: 14px;
+            font-weight: 700;
+            background: rgba(239, 68, 68, 0.1);
+            color: var(--error);
+            padding: 4px 10px;
+            border-radius: 8px;
+            font-family: monospace;
+        }
+
+        /* فاکتور متوازن و شیک */
+        .invoice-box {
+            border: 1px solid var(--border);
+            border-radius: 16px;
+            padding: 16px 20px;
+            margin-bottom: 24px;
+        }
+
+        .invoice-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 12px;
+            font-size: 13px;
+        }
+
+        .invoice-row:last-child {
+            margin-bottom: 0;
+        }
+
+        .invoice-label {
+            color: var(--text-muted);
+        }
+
+        .invoice-value {
+            font-weight: 500;
+        }
+
+        /* زون آپلود مینی‌مالستیک */
+        .upload-area {
+            border: 1px dashed var(--border);
+            border-radius: 16px;
+            padding: 40px 20px;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            background: rgba(255, 255, 255, 0.01);
+        }
+
+        .upload-area:hover, .upload-area.drag-over {
+            border-color: var(--primary);
+            background: rgba(82, 102, 255, 0.02);
+        }
+
+        .upload-icon {
+            width: 32px;
+            height: 32px;
+            stroke: var(--text-muted);
+            margin-bottom: 12px;
+            transition: stroke 0.2s ease;
+        }
+
+        .upload-area:hover .upload-icon {
+            stroke: var(--primary);
+        }
+
+        .upload-text {
+            font-size: 13px;
+            color: var(--text-muted);
+            margin: 0;
+        }
+
+        .upload-text strong {
+            color: var(--text-main);
+            font-weight: 500;
+        }
+
+        #fileInput {
+            display: none;
+        }
+
+        .preview-box {
+            display: none;
+            margin-top: 16px;
+            font-size: 12px;
+            color: var(--primary);
+            background: rgba(82, 102, 255, 0.05);
+            padding: 10px 14px;
+            border-radius: 10px;
+            text-align: right;
+        }
+
+        /* دکمه اکشن نهایی شیک */
+        .btn-action {
+            background-color: var(--primary);
+            color: white;
+            border: none;
+            width: 100%;
+            padding: 16px;
+            border-radius: 14px;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            margin-top: 24px;
+            transition: opacity 0.2s ease;
+        }
+
+        .btn-action:hover {
+            opacity: 0.9;
+        }
+
+        .btn-action:disabled {
+            background-color: var(--border);
+            color: var(--text-muted);
+            cursor: not-allowed;
+            opacity: 1;
+        }
+
+        /* صفحه انقضای تر و تمیز */
+        .overlay {
+            display: none;
+            position: absolute;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background: var(--surface);
+            z-index: 10;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            padding: 32px;
+            text-align: center;
+        }
+
+        .overlay h2 {
+            font-size: 20px;
+            color: var(--error);
+            margin-bottom: 12px;
+        }
+
+        .overlay p {
+            font-size: 13px;
+            color: var(--text-muted);
+            margin: 0;
+            line-height: 1.6;
+        }
+    </style>
+</head>
+<body>
+
+<div class="payment-card">
+    <!-- بار زمان بالا -->
+    <div class="time-bar-container">
+        <div class="time-bar" id="timeBar"></div>
+    </div>
+
+    <!-- صفحه باطل شدن -->
+    <div class="overlay" id="expiredOverlay">
+        <h2>زمان پرداخت به پایان رسید</h2>
+        <p>مهلت ۱۰ دقیقه‌ای بارگذاری فیش منقضی شده است. لطفا جهت صادر کردن مجدد فاکتور به ربات تلگرام مراجعه فرمایید.</p>
+    </div>
+
+    <div class="header">
+        <h1>تایید هوشمند فیش</h1>
+        <div class="timer" id="timer">10:00</div>
+    </div>
+
+    <div class="invoice-box">
+        <div class="invoice-row">
+            <span class="invoice-label">شناسه کاربر</span>
+            <span class="invoice-value" id="userId" style="font-family: monospace;">---</span>
+        </div>
+        <div class="invoice-row">
+            <span class="invoice-label">مبلغ قابل پرداخت</span>
+            <span class="invoice-value" id="amount">در حال بارگذاری...</span>
+        </div>
+    </div>
+
+    <div class="upload-area" id="dropZone" onclick="document.getElementById('fileInput').click()">
+        <!-- آیکون مینی‌مال لوکس خطی -->
+        <svg class="upload-icon" viewBox="0 0 24 24" fill="none" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M17 8l-5-5-5 5M12 3v12"/>
+        </svg>
+        <p class="upload-text">تصویر رسید را رها کنید یا <strong>انتخاب فایل</strong> را لمس کنید</p>
+        <input type="file" id="fileInput" accept="image/*">
+    </div>
+
+    <div class="preview-box" id="previewBox"></div>
+
+    <button class="btn-action" id="submitBtn" disabled>ارسال فیش جهت پردازش</button>
+</div>
+
+<script>
+    const urlParams = new URLSearchParams(window.location.search);
+    const user = urlParams.get('user') || 'ناشناس';
+    const amt = urlParams.get('amount') || '۰';
+    const creationTime = parseInt(urlParams.get('time')) || Math.floor(Date.now() / 1000);
+    
+    document.getElementById('userId').innerText = user;
+    document.getElementById('amount').innerText = amt + " تومان";
+
+    const duration = 10 * 60; 
+    const timer = document.getElementById('timer');
+    const timeBar = document.getElementById('timeBar');
+    const expiredOverlay = document.getElementById('expiredOverlay');
+
+    function updateTimer() {
+        const now = Math.floor(Date.now() / 1000);
+        const timeLeft = (creationTime + duration) - now;
+
+        if (timeLeft <= 0) {
+            timer.innerText = "00:00";
+            timeBar.style.width = "0%";
+            expiredOverlay.style.display = 'flex';
+            clearInterval(timerInterval);
+        } else {
+            const minutes = Math.floor(timeLeft / 60);
+            const seconds = timeLeft % 60;
+            timer.innerText = `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+            
+            // کاهش طول بار بالای کارت به صورت درصدی
+            const percentage = (timeLeft / duration) * 100;
+            timeBar.style.width = `${percentage}%`;
+        }
+    }
+
+    const timerInterval = setInterval(updateTimer, 1000);
+    updateTimer();
+
+    const dropZone = document.getElementById('dropZone');
+    const fileInput = document.getElementById('fileInput');
+    const previewBox = document.getElementById('previewBox');
+    const submitBtn = document.getElementById('submitBtn');
+
+    fileInput.addEventListener('change', handleFile);
+    
+    dropZone.addEventListener('dragover', (e) => { e.preventDefault(); dropZone.classList.add('drag-over'); });
+    dropZone.addEventListener('dragleave', () => dropZone.classList.remove('drag-over'));
+    dropZone.addEventListener('drop', (e) => {
+        e.preventDefault();
+        dropZone.classList.remove('drag-over');
+        if (e.dataTransfer.files.length) {
+            fileInput.files = e.dataTransfer.files;
+            handleFile();
+        }
+    });
+
+    function handleFile() {
+        if (fileInput.files.length > 0) {
+            const file = fileInput.files[0];
+            previewBox.innerText = `📎 فایل آماده ارسال: ${file.name} (${(file.size/1024/1024).toFixed(2)} MB)`;
+            previewBox.style.display = 'block';
+            submitBtn.disabled = false;
+        }
+    }
+
+    submitBtn.addEventListener('click', function() {
+        submitBtn.disabled = true;
+        submitBtn.innerText = 'در حال ارسال امن...';
+        
+        // شبیه‌سازی اتصال نهایی شما به پایتون
+        setTimeout(() => {
